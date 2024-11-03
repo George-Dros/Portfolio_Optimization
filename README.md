@@ -35,7 +35,7 @@ This project provides a foundational look into portfolio optimization techniques
 
 3. Data Collection
 
-   The project uses stock price data to calculate historical returns and risks. The data can be sourced from APIs like Yahoo Finance or downloaded directly as CSV       files for the assets included in the analysis. The data should cover daily price information to allow accurate calculation of daily returns, which are then          annualized.
+   The project uses stock price data to calculate historical returns and risks. The data can be sourced from APIs like Yahoo Finance or downloaded directly as CSV       files for the assets included in the analysis. The data should cover daily price    information to allow accurate calculation of daily returns, which are then          annualized.
 
    Ensure that you have a dataset containing daily prices of multiple stocks over a sufficient period (at least a year) for meaningful analysis. Clean any missing       values and format the data to have datetime indices and stock tickers as column headers.
 
