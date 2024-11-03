@@ -26,5 +26,5 @@ This project provides a foundational look into portfolio optimization techniques
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/portfolio-optimization.git
+   git clone https://github.com/George-Dros/portfolio-optimization.git
    cd portfolio-optimization
