@@ -112,3 +112,228 @@ def minimize_vol(target_return, er, cov):
                       )
     
     return results.x
+
+def var_historic(r, level=5):
+    """
+    VaR Historic
+    """
+    if isinstance(r, pd.DataFrame):
+        return r.aggregate(var_historic, level=level)
+    elif isinstance(r, pd.Series):
+        return -np.percentile(r, level)
+    else:
+        raise TypeError("Expected r to be Series or DataFrame")
+
+def cvar_historic(r, level=5):
+    """
+    Computes the Conditional VaR of Series or DataFrame
+    """
+    if isinstance(r, pd.Series):
+        is_beyond = r <= -var_historic(r, level=level)
+        return -r[is_beyond].mean()
+    elif isinstance(r, pd.DataFrame):
+        return r.aggregate(cvar_historic, level=level)
+    else:
+        raise TypeError("Expected r to be a Series or DataFrame")
+
+def weight_ew(r, cap_weights=None, max_cw_mult=None, microcap_threshold=None, **kwargs):
+    """
+    Returns the weights of the EW portfolio based on the asset returns "r" as a DataFrame
+    If supplied a set of capweights and a capweight tether, it is applied and reweighted 
+    """
+    n = len(r.columns)
+    ew = pd.Series(1/n, index=r.columns)
+    if cap_weights is not None:
+        cw = cap_weights.loc[r.index[0]] # starting cap weight
+        ## exclude microcaps
+        if microcap_threshold is not None and microcap_threshold > 0:
+            microcap = cw < microcap_threshold
+            ew[microcap] = 0
+            ew = ew/ew.sum()
+        #limit weight to a multiple of capweight
+        if max_cw_mult is not None and max_cw_mult > 0:
+            ew = np.minimum(ew, cw*max_cw_mult)
+            ew = ew/ew.sum() #reweight
+    return ew
+
+def rolling_portfolio_weights(returns, window, portfolio_type="msr", risk_free_rate=0.03, periods_per_year=252):
+    weights = []
+    for i in range(window, len(returns)):
+        window_returns = returns.iloc[i-window:i]  # Select rolling window data
+        
+        # Calculate expected returns for each asset in the rolling window
+        expected_returns = window_returns.apply(lambda x: annualize_rets(x, periods_per_year))
+        
+        cov_matrix = window_returns.cov() * periods_per_year  # Annualize covariance matrix
+        
+        if portfolio_type == "msr":
+            weight = msr(risk_free_rate, expected_returns, cov_matrix)
+        elif portfolio_type == "gmv":
+            weight = gmv(cov_matrix)
+        else:
+            raise ValueError("Invalid portfolio type. Choose 'msr' or 'gmv'.")
+        
+        weights.append(weight)
+    
+    return pd.DataFrame(weights, index=returns.index[window:], columns=returns.columns)
+
+def backtest_ws(r, estimation_window=60, weighting=weight_ew, verbose=False, **kwargs):
+    """
+    Backtests a given weighting scheme, given some parameters:
+    r : asset returns to use to build the portfolio
+    estimation_window: the window to use to estimate parameters
+    weighting: the weighting scheme to use, must be a function that takes "r", and a variable number of keyword-value arguments
+    """
+    n_periods = r.shape[0]
+    # Ensure estimation_window does not exceed data length
+    effective_window = min(estimation_window, n_periods)
+    windows = [(start, start+effective_window) for start in range(n_periods-effective_window)]
+    
+    weights = []
+    for win in windows:
+        window_data = r.iloc[win[0]:win[1]]
+        
+        # Check if window_data is complete; otherwise, skip or fill missing values
+        if window_data.isna().any().any():
+            window_data = window_data.fillna(method='ffill').fillna(method='bfill')
+        
+        # Apply weighting function and append
+        weights.append(weighting(window_data, **kwargs))
+    
+    # Convert weights to DataFrame and align with `r` index
+    weights = pd.DataFrame(weights, index=r.iloc[effective_window:].index, columns=r.columns)
+    returns = (weights * r).sum(axis="columns", min_count=1)  # Use min_count to handle NAs
+    
+    return returns
+
+def w_msr(sigma, mu, scale=True):
+    """
+    Optimal (Tangent/Max Sharpe Ratio) Portfolio weights
+    by using the Markowitz Optimization Procedure
+    Mu is the vector of Excess expected Returns
+    Sigma must be an N x N matrix as a DataFrame and Mu a column vector as a Series
+    This implements page 188 Equation 5.2.28 of
+    "The econometrics of financial markets" Campbell, Lo and Mackinlay.
+    """
+    w = inverse(sigma).dot(mu)
+    if scale:
+        w = w/sum(w) # fix: this assumes all w is +ve
+    return w
+
+def weight_msr(r, riskfree_rate=0.03):
+    sigma = cov_m  # Use the precomputed covariance matrix
+    mu = rets      # Use the expected returns
+    return w_msr(sigma, mu)
+
+def rolling_gmv_weights(returns, window=60):
+    # Initialize list to store weights
+    gmv_weights = []
+    for i in range(window, len(returns)):
+        window_returns = returns.iloc[i-window:i]
+        cov_matrix = window_returns.cov()
+        gmv_weight = gmv(cov_matrix)
+        gmv_weights.append(gmv_weight)
+    return pd.DataFrame(gmv_weights, index=returns.index[window:], columns=returns.columns)
+
+# Define the function to calculate Maximum Sharpe Ratio weights with rolling window
+def rolling_msr_weights(returns, riskfree_rate=0.03, window=60):
+    msr_weights = []
+    for i in range(window, len(returns)):
+        window_returns = returns.iloc[i-window:i]
+        expected_returns = window_returns.mean() * 12  # Assuming monthly data, annualize returns
+        cov_matrix = window_returns.cov()
+        msr_weight = msr(riskfree_rate, expected_returns, cov_matrix)
+        msr_weights.append(msr_weight)
+    return pd.DataFrame(msr_weights, index=returns.index[window:], columns=returns.columns)
+
+def drawdown(return_series: pd.Series):
+    """
+    Takes a time series of asset returns
+    Computes and returns a DataFrame that contains:
+    the wealth index
+    the previous peaks
+    the percent drawdowns
+    """
+    
+    wealth_index = 1000*(1+ return_series).cumprod()
+    previous_peaks = wealth_index.cummax()
+    drawdowns = (wealth_index - previous_peaks)/previous_peaks
+    return pd.DataFrame({
+        "Wealth": wealth_index,
+        "Peaks": previous_peaks,
+        "Drawdown": drawdowns
+    })
+
+def skewness(r):
+    """
+    Alternative to scipy.stats.skew()
+    Computes the skewness of the supplied Series or DataFrame
+    Returns a float or a Series
+    """
+    
+    demeaned_r = r-r.mean()
+    #Use the population standard deviation, so set dof=0
+    sigma_r = r.std(ddof=0)
+    exp = (demeaned_r**3).mean()
+    return exp/sigma_r**3
+
+
+def kurtosis(r):
+    """
+    Alternative to scipy.stats.kurtosis()
+    Computes the kurtosis of the supplied Series or DataFrame
+    Returns a float or a Series
+    """
+    
+    demeaned_r = r-r.mean()
+    #Use the population standard deviation, so set dof=0
+    sigma_r = r.std(ddof=0)
+    exp = (demeaned_r**4).mean()
+    return exp/sigma_r**4
+
+from scipy.stats import norm
+def var_gaussian(r, level=5, modified=False):
+    """
+    Returns the Parametric Gaussian VaR of a Series or DataFrame
+    """
+    
+    #compute the Z score assuming it was gaussian
+    z = norm.ppf(level/100)
+    if modified:
+        #Modify the Z scroe based on observed skewness and kurtosis
+        s = skewness(r)
+        k = kurtosis(r)
+        z = (z + 
+                (z**2 - 1)*s/6 +
+                (z**3 - 3*z)*(k-3)/24 -
+                (2*z**3 - 5*z)*(s**2)/36             
+            )
+    return -(r.mean() + z*r.std(ddof=0))
+
+
+
+def summary_stats(r, riskfree_rate=0.03, periods_per_year=252): 
+    """
+    Return a DataFrame that contains aggregated summary stats for the returns in the columns of r
+    """
+    ann_r = r.aggregate(annualize_rets, periods_per_year=periods_per_year)
+    ann_vol = r.aggregate(annualize_vol, periods_per_year=periods_per_year)
+    ann_sr = r.aggregate(sharpe_ratio, riskfree_rate=riskfree_rate, periods_per_year=periods_per_year)
+    dd = r.aggregate(lambda r: drawdown(r).Drawdown.min())
+    skew = r.aggregate(skewness)
+    kurt = r.aggregate(kurtosis)
+    cf_var5 = r.aggregate(var_gaussian, modified=True)
+    hist_cvar5 = r.aggregate(cvar_historic)
+    return pd.DataFrame({
+        "Annualized Return": ann_r,
+        "Annualized Vol": ann_vol,
+        "Skewness": skew,
+        "Kurtosis": kurt,
+        "Cornish-Fisher VaR (5%)": cf_var5,
+        "Historic CVaR (5%)": hist_cvar5,
+        "Sharpe Ratio": ann_sr,
+        "Max Drawdown": dd
+    })
+
+
+
