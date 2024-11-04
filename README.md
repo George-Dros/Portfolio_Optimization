@@ -11,8 +11,6 @@ In this project, we:
 4. Identified and plotted the Max Sharpe Ratio (MSR) and Global Minimum Variance (GMV) portfolios.
 5. Plotted the Capital Market Line (CML) to show the optimal risk-return profile for a given risk-free rate.
 
-This project provides a foundational look into portfolio optimization techniques, commonly used in quantitative finance.
-
 ## Table of Contents
 
 - [Installation](#installation)
