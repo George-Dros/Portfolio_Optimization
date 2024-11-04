@@ -35,33 +35,33 @@ In this project, we:
    ```bash
    pip install -r requirements.txt
 
-3. Data Collection
+## Data Collection
 
 The project utilizes stock price data to calculate historical returns and risks. Data can be sourced from Yahoo Finance or directly imported as CSV files. Ensure the data includes daily prices over a sufficient time frame (preferably 5+ years) for meaningful analysis. After importing, clean missing values and format the data with datetime indices and ticker symbols as column headers.
 
-4. Analysis Steps
+## Analysis Steps
    
-   i. Data Preparation
+   1. Data Preparation
 
-    Cleaning and Structuring Data: We clean the data to remove missing values and format it for analysis.
-    Annualization: Daily returns and risks are converted to annual figures for accurate portfolio comparisons.
+   Cleaning and Structuring Data: We clean the data to remove missing values and format it for analysis.
+   Annualization: Daily returns and risks are converted to annual figures for accurate portfolio comparisons.
 
-   ii. Calculating Risk and Return
+   2. Calculating Risk and Return
 
    Expected Returns: nnualized average returns for each asset.
    Covariance Matrix: Evaluates the co-movement between assets, essential for estimating portfolio risk.
 
-   iii. Efficient Frontier and Portfolio Optimization
+   3. Efficient Frontier and Portfolio Optimization
 
    Efficient Frontier: Constructed using modern portfolio theory to illustrate optimal risk-return portfolios.
    Max Sharpe Ratio (MSR) Portfolio: Identified as the portfolio that maximizes the Sharpe ratio, providing the best risk-adjusted return.
    Global Minimum Variance (GMV) Portfolio: Portfolio that maximizes risk-adjusted return (Sharpe Ratio).
 
-iv. Benchmark Selection: A global benchmark (MSCI World Index) was included for comparative analysis.
+4. Benchmark Selection: A global benchmark (MSCI World Index) was included for comparative analysis.
    Rolling Sharpe Ratios: Calculated rolling Sharpe Ratios over a 1-year window for MSR, GMV, and benchmark portfolios.
    Rolling Volatility: Examined volatility trends to understand risk exposure dynamics over time.
 
-v. Visualization
+5. Visualization
 
    Efficient Frontier Plot: Displays the range of optimal portfolios with risk-return profiles.
    Portfolio Markers: Highlights MSR and GMV portfolios on the efficient frontier.
@@ -70,7 +70,7 @@ v. Visualization
    Rolling Metrics: Visualizes rolling Sharpe Ratios and volatilities for dynamic analysis.
    Drawdown Analysis: Assesses portfolio resilience during market downturns by comparing drawdowns.
 
-5. Results
+## Results
 
 The project’s main results include:
 
@@ -84,7 +84,7 @@ The project’s main results include:
 
    Each element provides valuable insights into the risk-return characteristics of optimized portfolios, aiding in       the selection of portfolios suited for different risk tolerances.
    
-6. Future Enhancements
+## Future Enhancements
 
 Possible future additions to the project include:
 
@@ -94,6 +94,6 @@ Interactive Visualizations: Implement tools like Plotly or Streamlit for interac
 Machine Learning for Optimization: Explore ML models to improve portfolio weighting strategies based on market trends.
 
 
-7. Acknowledgments
+## Acknowledgments
 
 This project is inspired by modern portfolio theory and is built on the foundational ideas proposed by Harry Markowitz. Special thanks to the Coursera course material from the EDHEC Risk Institute for guidance on implementing portfolio optimization methods.   
